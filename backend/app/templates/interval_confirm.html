@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="display-4">{{ project.name }} - Interval</h1>
+
+    <h2 class="mt-4">Interval Details</h2>
+    <div class="border rounded p-3 bg-light mb-4">
+        <ul class="list-group mb-4">
+            <li class="list-group-item"><strong>Duration:</strong> {{ interval.duration / 60 }} minutes</li>
+            <li class="list-group-item">
+                <strong>Websites:</strong>
+                <ul>
+                    {% for website in interval.websites %}
+                    <li>
+                        <a href="{{ 'http://' + website if not (website.startswith('http://') or website.startswith('https://')) else website }}"
+                            target="_blank">{{ website }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            <li class="list-group-item"><strong>Selected Tasks:</strong>
+                <ul>
+                    {% for task in interval.tasks %}
+                    <li>{{ task.name }}
+                        {% if task.duration_seconds %}
+                        <span class="ml-2 text-muted">Estimated Time: {{ task.duration_seconds / 60 }} minutes</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="mt-4">
+        <button id="start-interval" class="btn btn-primary">Start Interval</button>
+        <div id="timer" style="display:none;">
+            <h3>Timer</h3>
+            <p id="time-remaining"></p>
+            <button id="pause-interval" class="btn btn-warning">Pause</button>
+            <button id="resume-interval" class="btn btn-success" style="display:none;">Resume</button>
+        </div>
+    </div>
+
+</div>
+
+
+
+<script>
+    const duration = {{ interval.duration }};
+    const websites = {{ interval.websites | tojson }};
+    const intervalId = {{ interval.id }};
+    const projectId = {{ project.id }};
+
+    let remainingTime = duration;
+    let intervalTimeId;
+
+    document.getElementById('start-interval').addEventListener('click', function () {
+        // Show the timer
+        document.getElementById('timer').style.display = 'block';
+
+        // Show start time alert
+        const startTime = new Date();
+        alert(`Start Time: ${startTime.toLocaleTimeString()}`);
+
+        // Send message to extension
+        window.postMessage({
+            type: 'FROM_FLASK',
+            action: 'startInterval',
+            payload: {
+                projectId: projectId,
+                intervalId: intervalId,
+
+                duration: duration,
+                allowedUrls: websites
+            }
+        }, '*');
+
+        console.log("Sent to extension:", { duration, websites }); // Log the sent data
+        updateIntervalStatus(projectId, "INITIATED");
+
+        // Start the timer
+        startTimer();
+    });
+
+    function startTimer() {
+        intervalTimeId = setInterval(() => {
+            if (remainingTime <= 0) {
+                clearInterval(intervalTimeId);
+                window.location.href = "../tasks";
+            } else {
+                remainingTime--;
+                updateTimerDisplay();
+            }
+        }, 1000); // Update every second
+    }
+
+    function updateTimerDisplay() {
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        document.getElementById('time-remaining').textContent = `Time Remaining: ${minutes}m ${seconds}s`;
+
+    }
+
+    // Control de pausa y reanudación
+    document.getElementById('pause-interval').addEventListener('click', function () {
+        if (intervalTimeId) {
+            clearInterval(intervalTimeId); // Pausar el temporizador
+            intervalTimeId = null; // Establecer intervalId en null
+            document.getElementById('pause-interval').style.display = 'none';
+            document.getElementById('resume-interval').style.display = 'inline';
+
+            // Enviar mensaje a la extensión para pausar el temporizador
+            window.postMessage({
+                type: 'FROM_FLASK',
+                action: 'pauseTimer'
+            }, '*');
+        }
+
+    });
+
+    document.getElementById('resume-interval').addEventListener('click', function () {
+        if (!intervalTimeId) {
+            // Reanudar el temporizador
+            startTimer(); // Reiniciar el temporizador
+            document.getElementById('resume-interval').style.display = 'none';
+            document.getElementById('pause-interval').style.display = 'inline';
+
+            // Enviar mensaje a la extensión para reanudar el temporizador
+            window.postMessage({
+                type: 'FROM_FLASK',
+                action: 'resumeTimer'
+            }, '*');
+        }
+    });
+
+    window.addEventListener("message", function (event) {
+    if (event.source !== window) return;
+
+    if (event.data && event.data.type === 'FROM_EXTENSION') {
+        if (event.data.action === 'timerFinished') {
+            document.getElementById('message').innerText = "El intervalo ha terminado.";
+            updateIntervalStatus(projectId, "FINISHED");
+        }
+    }
+}, false);
+
+
+    function updateIntervalStatus(id, status) {
+        fetch('/update_interval_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ interval_id: id, status: status })
+        })
+            .then(response => response.json())
+            .then(data => console.log("Estado del intervalo actualizado:", data))
+            .catch(error => console.error("Error al actualizar el estado del intervalo:", error));
+    }
+</script>
+
+{% endblock %}

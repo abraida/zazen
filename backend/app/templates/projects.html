@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Projects List -->
+    <h1 class="mb-4">Projects</h1>
+
+    <div class="row">
+        {% for project in projects %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- Project name with a link to manage tasks -->
+                    <h5 class="card-title">
+                        <a href="{{ url_for('api.manage_tasks', project_id=project.id) }}"
+                            class="text-decoration-none text-dark">
+                            {{ project.name }}
+                        </a>
+                    </h5>
+                    <p class="card-text text-muted">{{ project.task_count }} tasks</p>
+                    <p class="card-text text-muted">Deadline: {{ project.deadline.strftime('%Y-%m-%d') }}</p>
+                    <!-- Display deadline -->
+
+                    <div class="d-flex justify-content-between">
+                        <!-- Edit project button triggers modal -->
+                        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#editProjectModal{{ project.id }}">
+                            Edit
+                        </button>
+
+                        <!-- Delete project button triggers modal -->
+                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#deleteProjectModal{{ project.id }}">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Project Modal -->
+        <div class="modal fade" id="editProjectModal{{ project.id }}" tabindex="-1"
+            aria-labelledby="editProjectModalLabel{{ project.id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editProjectModalLabel{{ project.id }}">Edit Project</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" action="{{ url_for('api.edit_project', project_id=project.id) }}">
+                            {{ edit_form.hidden_tag() }}
+                            <div class="mb-3">
+                                {{ edit_form.new_name(class='form-control', placeholder='New project name',
+                                value=project.name) }}
+                            </div>
+                            <div class="mb-3">
+                                {{ edit_form.deadline.label(class='form-label') }}
+                                {{ edit_form.deadline(class='form-control', type='date',
+                                value=project.deadline.strftime('%Y-%m-%d')) }} <!-- Add deadline input -->
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Project Modal -->
+        <div class="modal fade" id="deleteProjectModal{{ project.id }}" tabindex="-1"
+            aria-labelledby="deleteProjectModalLabel{{ project.id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteProjectModalLabel{{ project.id }}">Delete Project</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete the project <strong>{{ project.name }}</strong>?</p>
+                        <form method="POST" action="{{ url_for('api.delete_project', project_id=project.id) }}">
+                            {{ delete_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <p class="text-muted">No projects available.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Create New Project Form -->
+    <h2 class="mt-5">Create New Project</h2>
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <!-- Project Name Field -->
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="Project Name") }}
+            {% for error in form.name.errors %}
+            <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Project Description Field -->
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", placeholder="Project Description") }}
+            {% for error in form.description.errors %}
+            <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Project Deadline Field -->
+        <div class="mb-3">
+            {{ form.deadline.label(class="form-label") }} <!-- Add a label for deadline -->
+            {{ form.deadline(class="form-control", type='date') }} <!-- Add deadline input -->
+            {% for error in form.deadline.errors %}
+            <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Create Project</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Project Title Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4">{{ project.name }}</h1>
+            {% if project.description %}
+                <p class="lead">{{ project.description }}</p>
+            {% endif %}
+            {% if project.total_duration > 0 %}
+                <p class="lead">Estimated Total Time: {{ project.total_duration / 60 }} minutes</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Task List and Focus Interval Section -->
+    <div class="row mb-5">
+        <div class="col">
+            <h2 class="h2 mb-3">Tasks</h2>
+            
+            <!-- Tasks Section with Visual Separation -->
+            <div class="border rounded p-3 bg-light mb-4">
+                <p class="lead">Select tasks to include in your focus interval:</p>
+                <ul class="list-group mb-4">
+                    {% for task in tasks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <input type="checkbox" id="task-{{ task.id }}" name="tasks" value="{{ task.id }}" class="me-2">
+                            <label for="task-{{ task.id }}" class="fw-bold">{{ task.name }}</label>
+                            {% if task.duration_seconds %}
+                                <span class="ms-2 text-muted">Estimated Time: {{ task.duration_seconds / 60 }} minutes</span>
+                            {% endif %}
+                            <span class="badge 
+                            {% if task.status.value == 'Completed' %}
+                                bg-success
+                            {% elif task.status.value == 'In Progress' %}
+                                bg-warning
+                            {% elif task.status.value == 'Not Completed' %}
+                                bg-danger
+                            {% endif %} 
+                            ms-2">{{ task.status.value }}</span>
+                        </div>
+                        <div class="d-flex">
+                            <!-- Edit Task Duration Form -->
+                            <form method="POST" action="{{ url_for('api.edit_task', project_id=project.id, task_id=task.id) }}" class="me-2">
+                                {{ edit_form.hidden_tag() }}
+                                {{ edit_form.status(class='form-select d-inline', style='width: 150px;') }} <!-- Increased width -->
+                                
+                                {% if task.duration_seconds %}
+                                    {{ edit_form.duration_minutes(class='form-control d-inline', style='width: 100px;', value=task.duration_seconds // 60) }}
+                                {% else %}
+                                    {{ edit_form.duration_minutes(class='form-control d-inline', style='width: 100px;') }}
+                                {% endif %}
+                                {{ edit_form.task_id(value=task.id) }}
+                                {{ edit_form.submit(class='btn btn-secondary btn-sm ml-2') }}
+                            </form>
+                            
+                            <!-- Delete Task Form -->
+                            <form method="POST" action="{{ url_for('api.delete_task', project_id=project.id, task_id=task.id) }}">
+                                {{ delete_form.hidden_tag() }}
+                                {{ delete_form.task_id(value=task.id) }}
+                                {{ delete_form.submit(class='btn btn-danger btn-sm') }}
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+                
+            
+
+            <!-- Add New Task Section -->
+            <div class="border rounded p-3 bg-light">
+                <h2 class="h4">Add New Task</h2>
+                <form method="POST" action="{{ url_for('api.manage_tasks', project_id=project.id) }}">
+                    {{ form.hidden_tag() }}
+                    <div class="form-group mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control", placeholder="Task Name") }}
+                        {% for error in form.name.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Task</button>
+                </form>
+            </div>
+            <!-- Start a Focus Interval Section -->
+            <div class="border rounded p-3 mb-4">
+                <h2 class="mt-4">Start a Focus Interval</h2>
+                <form id="tasks-form" method="POST" action="{{ url_for('api.start_interval', project_id=project.id) }}">
+                    {{ interval_form.hidden_tag() }}
+
+                    <!-- Website Input with Clear Sectioning -->
+                    <div class="form-group mb-3">
+                        <label for="websites">Enter a Website to Allow:</label>
+                        <div class="d-flex">
+                            <input type="text" id="website-input" class="form-control me-2" placeholder="e.g., https://www.site.com">
+                        </div>
+                        <ul id="website-list" class="list-group mb-3">
+                            <!-- List items will be added here dynamically -->
+                        </ul>
+                        <button type="button" id="add-website" class="btn btn-secondary mt-2">Add Website</button>
+                        {% if interval_form.websites_hidden.errors %}
+                            <div class="text-danger">
+                                {% for error in interval_form.websites_hidden.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Duration Input -->
+                    <div class="form-group mb-3">
+                        {{ interval_form.duration.label() }}
+                        {{ interval_form.duration(class="form-control") }}
+                    </div>
+
+                    <!-- Submit Button for Focus Interval -->
+                    {% if interval_form.tasks_hidden.errors %}
+                        <div class="text-danger">
+                            {% for error in interval_form.tasks_hidden.errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">Start Interval</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    const websiteInput = document.getElementById('website-input');
+    const addWebsiteButton = document.getElementById('add-website');
+    const websiteList = document.getElementById('website-list');
+    const websitesField = document.querySelector('input[name="websites_hidden"]');
+
+    let websites = [];
+
+    addWebsiteButton.addEventListener('click', function() {
+        const website = websiteInput.value.trim();
+        if (website) {
+            websites.push(website);
+            addWebsiteToList(website);
+            websiteInput.value = ''; // Clear input field
+        }
+    });
+
+    function addWebsiteToList(website) {
+        const listItem = document.createElement('li');
+        listItem.textContent = website;
+        listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+        
+        // Create a button to remove the website
+        const removeButton = document.createElement('button');
+        removeButton.classList.add('btn', 'btn-danger', 'btn-sm');
+        removeButton.textContent = 'Remove';
+        removeButton.onclick = function() {
+            removeWebsite(website, listItem);
+        };
+
+        listItem.appendChild(removeButton);
+        websiteList.appendChild(listItem);
+
+        // Update the hidden field with the current websites list
+        websitesField.value = JSON.stringify(websites);
+    }
+
+    function removeWebsite(website, listItem) {
+        // Remove the website from the array
+        websites = websites.filter(w => w !== website);
+        
+        // Remove the list item from the DOM
+        websiteList.removeChild(listItem);
+        
+        // Update the hidden field with the current websites list
+        websitesField.value = JSON.stringify(websites);
+    }
+
+    const tasksForm = document.getElementById('tasks-form');
+        const checkboxes = document.querySelectorAll('input[name="tasks"]');
+        const selectedTasksField = document.getElementById('tasks_hidden');
+
+        let selectedTasks = [];
+
+        function updateSelectedTasks() {
+            selectedTasks = [];
+
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedTasks.push(checkbox.value);
+                }
+            });
+
+            selectedTasksField.value = JSON.stringify(selectedTasks);
+        }
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedTasks);
+        });
+
+</script>
+
+
+{% endblock %}

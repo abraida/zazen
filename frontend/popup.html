@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Blocker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #allowedUrlsList {
+            margin-bottom: 20px;
+        }
+
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .url-item {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pomodoro Blocker</h1>
+
+    <div id="timer">00:00</div> <!-- Aquí se mostrará el contador del intervalo -->
+
+    <h2>Allowed URLs:</h2>
+    <ul id="allowedUrlsList">
+        <!-- Las URLs permitidas se agregarán dinámicamente aquí -->
+    </ul>
+
+    <button id="pause">Pause Timer</button>
+    <button id="resume" style="display: none;">Resume Timer</button>
+
+    <script src="popup.js"></script>
+</body>
+</html>
